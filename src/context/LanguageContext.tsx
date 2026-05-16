@@ -12,7 +12,7 @@ const DICT = {
   },
   hero: {
     eyebrow: { en: "Interactive Digital Museum", id: "Museum Digital Interaktif" },
-    title: { en: "MuseumIndonesia", id: "MuseumIndonesia" },
+    title: { en: "Museum Indonesia", id: "MuseumIndonesia" },
     subtitle: {
       en: "A living mosaic of 38 provinces, 1,300+ ethnic groups, and a millennia of cultural brilliance — explored cinematically.",
       id: "Mosaik hidup dari 38 provinsi, 1.300+ suku bangsa, dan ribuan tahun warisan budaya — dijelajahi secara sinematik.",
