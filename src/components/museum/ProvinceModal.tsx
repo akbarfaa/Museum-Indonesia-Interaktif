@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Province } from "@/data/provinces";
 import { useLang, pick } from "@/context/LanguageContext";
 import { useProgress } from "@/context/ProgressContext";
-import { X, Stamp, Play, MapPin, Home, Music, Drum, UtensilsCrossed, Sparkles } from "lucide-react";
+import { X, Stamp, Play, MapPin, Home, Music, Drum, UtensilsCrossed, Sparkles, Film } from "lucide-react";
 
 interface Props { province: Province | null; onClose: () => void; }
 
@@ -29,7 +29,11 @@ export function ProvinceModal({ province, onClose }: Props) {
           >
             <div
               className="relative h-56 md:h-72 overflow-hidden rounded-t-3xl"
-              style={{ background: `linear-gradient(135deg, ${province.color}, oklch(0.18 0.025 60))` }}
+              style={{
+                backgroundImage: `linear-gradient(to bottom, ${province.color}80, rgba(0,0,0,0.85)), url(${province.heroImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
             >
               <div className="absolute inset-0 batik-pattern opacity-25" />
               <button
@@ -58,7 +62,37 @@ export function ProvinceModal({ province, onClose }: Props) {
                 <Stat icon={<Sparkles className="h-4 w-4" />} label={t("detail.wisdom")} value={pick(province.wisdom, lang)} />
               </div>
 
-              <div className="flex flex-wrap gap-3 pt-2">
+              {/* Documentary Embed */}
+              {province.documentary && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Film className="h-4 w-4 text-gold" />
+                    <h3 className="font-display text-xl text-ivory">
+                      {t("detail.watch")}
+                    </h3>
+                  </div>
+                  <div
+                    className="relative rounded-2xl overflow-hidden shadow-2xl"
+                    style={{
+                      border: `1px solid ${province.color}40`,
+                    }}
+                  >
+                    {/* Responsive 16:9 iframe */}
+                    <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                      <iframe
+                        src={`https://www.youtube.com/embed/${province.documentary}?rel=0&modestbranding=1&color=white`}
+                        title={`${province.name} Documentary`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="absolute inset-0 w-full h-full"
+                        style={{ border: 0 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3 pt-4 border-t border-gold/20 mt-6">
                 <button
                   onClick={() => visit(province.id)}
                   disabled={visited.includes(province.id)}
@@ -67,15 +101,6 @@ export function ProvinceModal({ province, onClose }: Props) {
                   <Stamp className="h-4 w-4" />
                   {visited.includes(province.id) ? t("detail.collected") : t("detail.collect")}
                 </button>
-                {province.documentary && (
-                  <a
-                    href={`https://www.youtube.com/watch?v=${province.documentary}`}
-                    target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2.5 text-sm font-semibold text-gold hover:bg-gold/10 transition"
-                  >
-                    <Play className="h-4 w-4" /> {t("detail.watch")}
-                  </a>
-                )}
               </div>
             </div>
           </motion.div>

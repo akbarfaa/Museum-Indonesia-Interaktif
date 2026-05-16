@@ -14,6 +14,7 @@ import { Route as PassportRouteImport } from './routes/passport'
 import { Route as FoodRouteImport } from './routes/food'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProvinceProvinceIdRouteImport } from './routes/province/$provinceId'
 
 const QuizRoute = QuizRouteImport.update({
   id: '/quiz',
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProvinceProvinceIdRoute = ProvinceProvinceIdRouteImport.update({
+  id: '/province/$provinceId',
+  path: '/province/$provinceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/food': typeof FoodRoute
   '/passport': typeof PassportRoute
   '/quiz': typeof QuizRoute
+  '/province/$provinceId': typeof ProvinceProvinceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/food': typeof FoodRoute
   '/passport': typeof PassportRoute
   '/quiz': typeof QuizRoute
+  '/province/$provinceId': typeof ProvinceProvinceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,33 @@ export interface FileRoutesById {
   '/food': typeof FoodRoute
   '/passport': typeof PassportRoute
   '/quiz': typeof QuizRoute
+  '/province/$provinceId': typeof ProvinceProvinceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explore' | '/food' | '/passport' | '/quiz'
+  fullPaths:
+    | '/'
+    | '/explore'
+    | '/food'
+    | '/passport'
+    | '/quiz'
+    | '/province/$provinceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explore' | '/food' | '/passport' | '/quiz'
-  id: '__root__' | '/' | '/explore' | '/food' | '/passport' | '/quiz'
+  to:
+    | '/'
+    | '/explore'
+    | '/food'
+    | '/passport'
+    | '/quiz'
+    | '/province/$provinceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/explore'
+    | '/food'
+    | '/passport'
+    | '/quiz'
+    | '/province/$provinceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +105,7 @@ export interface RootRouteChildren {
   FoodRoute: typeof FoodRoute
   PassportRoute: typeof PassportRoute
   QuizRoute: typeof QuizRoute
+  ProvinceProvinceIdRoute: typeof ProvinceProvinceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/province/$provinceId': {
+      id: '/province/$provinceId'
+      path: '/province/$provinceId'
+      fullPath: '/province/$provinceId'
+      preLoaderRoute: typeof ProvinceProvinceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -125,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   FoodRoute: FoodRoute,
   PassportRoute: PassportRoute,
   QuizRoute: QuizRoute,
+  ProvinceProvinceIdRoute: ProvinceProvinceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

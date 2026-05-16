@@ -1,93 +1,258 @@
-import { motion } from "framer-motion";
-import { PROVINCES, Province } from "@/data/provinces";
-import { useLang, pick } from "@/context/LanguageContext";
+import { useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { PROVINCES } from "@/data/provinces";
 import { useProgress } from "@/context/ProgressContext";
+import { ClientOnly } from "@/components/ClientOnly";
+import { Loader2 } from "lucide-react";
 
-interface Props { onSelect: (p: Province) => void; }
+// Map province GeoJSON state names → our province IDs
+const GEO_NAME_TO_ID: Record<string, string> = {
+  Aceh: "aceh",
+  "Sumatera Utara": "sumut",
+  "Sumatera Barat": "sumbar",
+  "DKI Jakarta": "jakarta",
+  Jakarta: "jakarta",
+  Yogyakarta: "yogya",
+  "DI Yogyakarta": "yogya",
+  "Jawa Timur": "jatim",
+  Bali: "bali",
+  "Nusa Tenggara Timur": "ntt",
+  "Sulawesi Selatan": "sulsel",
+  Papua: "papua",
+};
 
-export function IndonesiaMap({ onSelect }: Props) {
-  const { lang } = useLang();
+function getStyleForProvince(
+  geoStateName: string,
+  visited: string[],
+  highlight = false,
+) {
+  const id = GEO_NAME_TO_ID[geoStateName];
+  const province = PROVINCES.find((p) => p.id === id);
+  const isVisited = id ? visited.includes(id) : false;
+  const hasData = !!province;
+
+  const fillColor = isVisited
+    ? "#d4a847"
+    : hasData
+      ? province!.color
+      : "#3a3020";
+
+  return {
+    fillColor,
+    fillOpacity: highlight ? 0.92 : hasData ? 0.65 : 0.22,
+    color: highlight && hasData ? province!.color : hasData ? "#c8a04080" : "#60503020",
+    weight: highlight ? 2.5 : hasData ? 1.5 : 0.8,
+  };
+}
+
+function MapContainer() {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMapRef = useRef<import("leaflet").Map | null>(null);
+  const navigate = useNavigate();
   const { visited } = useProgress();
 
+  const handleProvinceClick = useCallback(
+    (geoStateName: string) => {
+      const id = GEO_NAME_TO_ID[geoStateName];
+      if (id) {
+        navigate({ to: "/province/$provinceId", params: { provinceId: id } });
+      }
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (leafletMapRef.current) {
+      leafletMapRef.current.remove();
+      leafletMapRef.current = null;
+    }
+
+    let cancelled = false;
+
+    async function initMap() {
+      const L = (await import("leaflet")).default;
+      await import("leaflet/dist/leaflet.css");
+
+      if (cancelled || !mapRef.current) return;
+
+      const map = L.map(mapRef.current, {
+        center: [-2.5, 118],
+        zoom: 4.5,
+        zoomControl: true,
+        scrollWheelZoom: true,
+        minZoom: 3,
+        maxZoom: 8,
+        attributionControl: false,
+      });
+
+      leafletMapRef.current = map;
+
+      // CartoDB Dark Matter
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        {
+          subdomains: "abcd",
+          maxZoom: 20,
+        },
+      ).addTo(map);
+
+      L.control.attribution({ position: "bottomright" }).addTo(map);
+
+      const response = await fetch("/indonesia-provinces.geojson");
+      const geoData = await response.json();
+
+      if (cancelled) return;
+
+      const geoLayer = L.geoJSON(geoData, {
+        style: (feature) => {
+          const name: string = feature?.properties?.state ?? "";
+          return getStyleForProvince(name, visited);
+        },
+        onEachFeature: (feature, layer) => {
+          const name: string = feature?.properties?.state ?? "";
+          const id = GEO_NAME_TO_ID[name];
+          const province = PROVINCES.find((p) => p.id === id);
+
+          const tooltipContent = province
+            ? `<div class="nv-tooltip">
+                <div class="nv-tooltip-sub">Province</div>
+                <div class="nv-tooltip-title">${name}</div>
+                <div class="nv-tooltip-cta" style="color:${province.color}">Click to explore →</div>
+              </div>`
+            : `<div class="nv-tooltip nv-tooltip-dim">${name}</div>`;
+
+          layer.bindTooltip(tooltipContent, {
+            sticky: true,
+            opacity: 1,
+            className: "leaflet-nv-tooltip",
+          });
+
+          layer.on({
+            mouseover: (e) => {
+              geoLayer.resetStyle(e.target);
+              e.target.setStyle(getStyleForProvince(name, visited, true));
+              e.target.bringToFront();
+            },
+            mouseout: (e) => {
+              geoLayer.resetStyle(e.target);
+            },
+            click: () => handleProvinceClick(name),
+          });
+        },
+      }).addTo(map);
+    }
+
+    initMap();
+
+    return () => {
+      cancelled = true;
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+    };
+  }, [visited, handleProvinceClick]);
+
   return (
-    <div className="relative w-full overflow-hidden rounded-3xl glass p-4 md:p-8 shadow-elevated">
-      <div className="absolute inset-0 batik-pattern opacity-30 pointer-events-none" />
-      <svg viewBox="0 0 1000 420" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <radialGradient id="ocean" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor="oklch(0.32 0.06 220 / 0.4)" />
-            <stop offset="100%" stopColor="oklch(0.16 0.02 60 / 0.1)" />
-          </radialGradient>
-          <filter id="glow"><feGaussianBlur stdDeviation="3" /></filter>
-        </defs>
+    <div
+      ref={mapRef}
+      style={{ height: "520px", width: "100%" }}
+      className="rounded-2xl overflow-hidden"
+    />
+  );
+}
 
-        <rect width="1000" height="420" fill="url(#ocean)" />
+function MapFallback() {
+  return (
+    <div
+      className="flex items-center justify-center rounded-2xl glass"
+      style={{ height: "520px" }}
+    >
+      <div className="flex flex-col items-center gap-3 text-ivory/60">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+        <span className="text-sm">Loading interactive map…</span>
+      </div>
+    </div>
+  );
+}
 
-        {/* Stylized Indonesia silhouette: organic blobs */}
-        <g fill="oklch(0.30 0.04 60)" stroke="oklch(0.82 0.15 85 / 0.45)" strokeWidth="1.2">
-          {/* Sumatra */}
-          <path d="M60,60 Q120,70 160,140 Q200,210 230,260 Q210,280 180,260 Q140,220 110,170 Q80,120 60,60 Z" />
-          {/* Java */}
-          <path d="M260,295 Q330,275 400,290 Q470,300 510,310 Q480,335 420,330 Q340,335 280,320 Q255,310 260,295 Z" />
-          {/* Bali + NTB + NTT */}
-          <ellipse cx="498" cy="330" rx="18" ry="9" />
-          <ellipse cx="535" cy="338" rx="20" ry="8" />
-          <path d="M555,342 Q600,350 640,348 Q610,358 570,355 Z" />
-          {/* Kalimantan */}
-          <path d="M380,80 Q470,90 520,140 Q560,210 530,250 Q470,260 420,240 Q360,200 360,140 Z" />
-          {/* Sulawesi */}
-          <path d="M580,160 Q610,210 600,260 Q585,290 615,260 Q640,225 650,180 Q665,140 690,110 Q670,95 645,130 Q620,160 610,140 Q605,110 580,120 Z" />
-          {/* Maluku */}
-          <ellipse cx="760" cy="200" rx="22" ry="14" />
-          <ellipse cx="790" cy="240" rx="14" ry="10" />
-          {/* Papua */}
-          <path d="M820,180 Q900,170 960,210 Q980,260 940,280 Q870,290 830,260 Q800,220 820,180 Z" />
-        </g>
-
-        {/* Animated clouds */}
-        {[0, 1, 2].map((i) => (
-          <motion.ellipse
-            key={i}
-            cx={200 + i * 280}
-            cy={40 + i * 12}
-            rx="80" ry="10"
-            fill="oklch(0.96 0.015 80 / 0.06)"
-            animate={{ cx: [200 + i * 280, 1100, 200 + i * 280] }}
-            transition={{ duration: 60 + i * 10, repeat: Infinity, ease: "linear" }}
-          />
-        ))}
-
-        {/* Markers */}
-        {PROVINCES.map((p, idx) => {
-          const isVisited = visited.includes(p.id);
-          return (
-            <g key={p.id} onClick={() => onSelect(p)} style={{ cursor: "pointer" }}>
-              <motion.circle
-                cx={p.x} cy={p.y} r="14"
-                fill={p.color} opacity="0.25"
-                filter="url(#glow)"
-                animate={{ r: [12, 22, 12], opacity: [0.15, 0.45, 0.15] }}
-                transition={{ duration: 2.4, repeat: Infinity, delay: idx * 0.18 }}
-              />
-              <motion.circle
-                cx={p.x} cy={p.y} r="6"
-                fill={isVisited ? "oklch(0.82 0.15 85)" : p.color}
-                stroke="oklch(0.96 0.015 80)" strokeWidth="1.5"
-                whileHover={{ scale: 1.6 }}
-              />
-              <text
-                x={p.x} y={p.y - 22}
-                textAnchor="middle"
-                fontSize="11"
-                fill="oklch(0.96 0.015 80 / 0.85)"
-                className="pointer-events-none select-none font-medium"
-              >
-                {pick(p.region, lang).split(" ")[0]} · {p.name}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+export function IndonesiaMap() {
+  return (
+    <div className="relative w-full overflow-hidden rounded-3xl glass shadow-elevated">
+      <ClientOnly fallback={<MapFallback />}>
+        <MapContainer />
+      </ClientOnly>
+      <style>{`
+        .leaflet-nv-tooltip {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        .leaflet-nv-tooltip::before {
+          display: none !important;
+        }
+        .nv-tooltip {
+          background: oklch(0.16 0.025 60 / 0.96);
+          border: 1px solid oklch(0.50 0.08 80 / 0.4);
+          border-radius: 12px;
+          padding: 10px 16px;
+          font-family: 'Cormorant Garamond', serif;
+          backdrop-filter: blur(8px);
+          min-width: 140px;
+        }
+        .nv-tooltip-dim {
+          color: oklch(0.65 0.02 80);
+          font-size: 13px;
+          font-family: sans-serif;
+        }
+        .nv-tooltip-sub {
+          color: oklch(0.82 0.15 85);
+          font-size: 9px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+        .nv-tooltip-title {
+          color: oklch(0.96 0.015 80);
+          font-size: 18px;
+          font-weight: 600;
+          margin-top: 2px;
+          line-height: 1.2;
+        }
+        .nv-tooltip-cta {
+          font-size: 11px;
+          margin-top: 4px;
+          font-family: sans-serif;
+        }
+        .leaflet-container {
+          background: oklch(0.10 0.015 60) !important;
+        }
+        .leaflet-control-zoom {
+          border: 1px solid oklch(0.82 0.15 85 / 0.25) !important;
+          background: oklch(0.16 0.025 60 / 0.9) !important;
+          border-radius: 10px !important;
+          overflow: hidden;
+        }
+        .leaflet-control-zoom a {
+          color: oklch(0.82 0.15 85) !important;
+          background: transparent !important;
+          border-bottom-color: oklch(0.82 0.15 85 / 0.15) !important;
+          line-height: 28px !important;
+        }
+        .leaflet-control-zoom a:hover {
+          background: oklch(0.82 0.15 85 / 0.12) !important;
+        }
+        .leaflet-control-attribution {
+          background: oklch(0.10 0.015 60 / 0.75) !important;
+          color: oklch(0.55 0.02 80) !important;
+          font-size: 9px !important;
+          border-radius: 6px 0 0 0 !important;
+        }
+        .leaflet-control-attribution a {
+          color: oklch(0.68 0.07 80) !important;
+        }
+      `}</style>
     </div>
   );
 }

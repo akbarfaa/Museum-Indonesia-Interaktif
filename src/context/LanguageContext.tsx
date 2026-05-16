@@ -12,7 +12,7 @@ const DICT = {
   },
   hero: {
     eyebrow: { en: "Interactive Digital Museum", id: "Museum Digital Interaktif" },
-    title: { en: "NusantaraVerse", id: "NusantaraVerse" },
+    title: { en: "MuseumIndonesia", id: "MuseumIndonesia" },
     subtitle: {
       en: "A living mosaic of 38 provinces, 1,300+ ethnic groups, and a millennia of cultural brilliance — explored cinematically.",
       id: "Mosaik hidup dari 38 provinsi, 1.300+ suku bangsa, dan ribuan tahun warisan budaya — dijelajahi secara sinematik.",
@@ -92,8 +92,8 @@ const DICT = {
 type DictTree = typeof DICT;
 type Path<T, P extends string = ""> = {
   [K in keyof T & string]: T[K] extends { en: string; id: string }
-    ? `${P}${P extends "" ? "" : "."}${K}`
-    : Path<T[K], `${P}${P extends "" ? "" : "."}${K}`>;
+  ? `${P}${P extends "" ? "" : "."}${K}`
+  : Path<T[K], `${P}${P extends "" ? "" : "."}${K}`>;
 }[keyof T & string];
 export type TKey = Path<DictTree>;
 

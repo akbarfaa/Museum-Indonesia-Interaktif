@@ -14,7 +14,7 @@ export function Navbar() {
             <Compass className="h-5 w-5 text-background" />
           </span>
           <span className="font-display text-xl tracking-wide text-ivory">
-            Nusantara<span className="text-gold">Verse</span>
+            Museum<span className="text-gold">Indonesia</span>
           </span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
